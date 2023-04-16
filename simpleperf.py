@@ -64,7 +64,7 @@ def client_mode(server_ip, port, data_to_send_in_MB, duration, interval):       
     results = []
     new_interval = False
 
-    while data_sent < total_data_to_send and time.time() - start_time <= duration:      #Makes sure the client keeps sending data either until time limit is reached, or the total data to send is less than data sent
+    while data_sent < total_data_to_send and time.time() - start_time < duration:      #Makes sure the client keeps sending data either until time limit is reached, or the total data to send is less than data sent
         data = b'0' * 1000                                                              #Makes 1000 bytes to send
         client_socket.send(data)                                                        #sends the data created
         data_sent += len(data)                                                          #adds the amount sent to the data_sent variable
@@ -91,16 +91,28 @@ def client_mode(server_ip, port, data_to_send_in_MB, duration, interval):       
             new_interval = False
 
     client_socket.send(b"BYE")                                          #When the client is done sending it sends a BYE message
-    client_socket.recv(1000)                                            
+    ack_data = client_socket.recv(1000)
+    if b"ACK BYE" not in ack_data:
+        print("Error: Server did not acknowledge the BYE message")                                            
         
     elapsed_time = time.time() - start_time                             #Time variable used for calculations
-    bandwidth = (data_sent / 1000000) / elapsed_time                    #Calculates the bandwith
+    bandwidth = (data_sent / 1000000) / elapsed_time * 8                  #Calculates the bandwith
     result = {                                                          #Result variable used to create a table for print
         "Client Address": f"{server_ip}:{port}",
         "Interval": "0.0 - " + f"{elapsed_time:.1f}",
         "Transfer": f"{round(data_sent / 1000000, 2)} MB",
-        "Bandwidth": f"{round(bandwidth * 8, 2)} Mbps"
+        "Bandwidth": f"{round(bandwidth, 2)} Mbps"
     }
+    if interval_data_sent > 0:
+        elapsed_time = time.time() - interval_start_time
+        bandwidth = ((interval_data_sent / 1000000) / elapsed_time) * 8
+        results.append({
+            "Client Address": f"{server_ip}:{port}",
+            "Interval": f"{interval_start_time - start_time:.1f} - {time.time() - start_time:.1f}",
+            "Transfer": f"{interval_data_sent / 1000000:.2f} MB",
+            "Bandwidth": f"{bandwidth:.2f} Mbps"
+    })
+    print_table(results)
     print_final_result([result])                                               #Prints the results in a table
     client_socket.close()                                               #Closes connection
 

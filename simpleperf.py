@@ -15,7 +15,7 @@ def print_final_result(results):
     print("--------------------------------------------------")
     print_table(results)
 
-def server_mode(ip, port, interval):                                              #Function to establish server parameters
+def server_mode(ip, port):                                              #Function to establish server parameters
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)   #Establishes a server socket for the client to connect
     server_socket.bind((ip, port))                                      #And binds the server to an ip
     server_socket.listen(10)                                            #The server listens for up to 10 clients
@@ -27,43 +27,23 @@ def server_mode(ip, port, interval):                                            
         connection, client_address = server_socket.accept()                 #Accepts the connection                                            #Starts a timer for later calculations
         start_time = time.time()
         total_data_received = 0                                             #Initiates a variable for the amount of data revieved throuout the transmition
-        interval_start_time = start_time
-        interval_data_received = 0
-
+        
         results = []                                                        #Makes an array variable for the result to be printed later
-        new_interval = False
-
+        
         while True:                                                         #Loops the server to continously recieve data
             data = connection.recv(1000)                                    #Amount of bits recieved for each loop
             total_data_received += len(data)                                #Adds the amount of bits recieved to the total_data varialbe 
-            interval_data_received += len(data)
-
-            current_time = time.time()
-            elapsed_interval_time = current_time - interval_start_time
-            if interval is not None and elapsed_interval_time >= interval:
-                new_interval = True
-                elapsed_time = time.time() - interval_start_time                             #The time spent transmitting
-                bandwidth = (interval_data_received / 1000000) / elapsed_interval_time                  #Calculates the size of the bandwith
-                results.append({                                                            #Appends to the result variable to create a table to print for server
-                    "Client Address": f"{client_address[0]}:{client_address[1]}",
-                    "Interval": f"{interval_start_time - start_time:.1f} - {current_time - start_time:.1f}",
-                    "Transfer": f"{total_data_received / 1000000:.2f} MB",
-                    "Bandwidth": f"{bandwidth:.2f} Mbps"
-                })
-            
-                interval_start_time = current_time
-                interval_data_received = 0
             
             if not data or b"BYE" in data:                                  #This if test tests for either no data or if the data i containing BYE
                 connection.send('ACK BYE'.encode())                         #If it is empty or contains BYE it will send an ACK BYE to client
-                break                                                       #breaks the while loop
-
-            if new_interval:
-                print_table(results)
-                results = []
-                new_interval = False                                                #Prints the table from the print_table def
-        
-        print_table(results)
+                break                                                       #breaks the while loop                                                #Prints the table from the print_table def
+        bandwidth = ((total_data_received / 1000000) / (time.time() - start_time)) * 8
+        results.append({
+            "Client Address": f"{client_address[0]}:{client_address[1]}",
+            "Interval": f"0.0 - {time.time() - start_time:.1f}",
+            "Transfer": f"{total_data_received / 1000000:.2f} MB",
+            "Bandwidth": f"{bandwidth:.2f} Mbps"     
+        })
         connection.close()                                                  #Closes the connection
         print_final_result(results)
 
@@ -84,10 +64,10 @@ def client_mode(server_ip, port, data_to_send_in_MB, duration, interval):       
     results = []
     new_interval = False
 
-    while data_sent < total_data_to_send and time.time() - start_time <= duration:   #Makes sure the client keeps sending data either until time limit is reached, or the total data to send is less than data sent
-        data = b'0' * 1000                                                  #Makes 1000 bytes to send
-        client_socket.send(data)                                            #sends the data created
-        data_sent += len(data)                                              #adds the amount sent to the data_sent variable
+    while data_sent < total_data_to_send and time.time() - start_time <= duration:      #Makes sure the client keeps sending data either until time limit is reached, or the total data to send is less than data sent
+        data = b'0' * 1000                                                              #Makes 1000 bytes to send
+        client_socket.send(data)                                                        #sends the data created
+        data_sent += len(data)                                                          #adds the amount sent to the data_sent variable
         interval_data_sent += len(data)
 
         current_time = time.time()
@@ -139,7 +119,7 @@ def main():
     args = parser.parse_args()
 
     if args.server:
-        server_mode(args.bind, args.port, args.interval)
+        server_mode(args.bind, args.port)
     elif args.client:
         client_mode(args.serverip, args.port, args.num, args.time, args.interval)
     else:
